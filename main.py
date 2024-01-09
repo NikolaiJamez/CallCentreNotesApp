@@ -1,5 +1,10 @@
 import flet as ft
-import pyperclip as clip
+from dataclasses import dataclass
+
+@dataclass
+class variables:
+    SEPERATOR: str = '\n----------\n'
+    FILENAME: str = 'notes.txt'
 
 
 def main(page: ft.Page) -> None:
@@ -9,21 +14,29 @@ def main(page: ft.Page) -> None:
             add_note(e)
 
     def copy_note(e: ft.ControlEvent) -> None:
-        clip.copy(e.control.content.value)
+        page.set_clipboard(e.control.content.value)
         page.snack_bar.open = True
         page.update()
 
     def add_note(e: ft.ControlEvent) -> None:
         notes_row.controls.append(
             ft.Card(
-                content = ft.Container(
-                    content = ft.Text(note_text_field.value),
-                    padding = 10,
-                    on_click = copy_note,
-                    on_long_press = delete_note,
-                    data = len(notes_row.controls),
-                ),
+                content = ft.Stack([
+                    ft.Container(
+                        content = ft.Text(note_text_field.value),
+                        padding = 10,
+                        on_click = copy_note,
+                        data = len(notes_row.controls),
+                    ),
+                    ft.IconButton(
+                        icon = ft.icons.CLOSE,
+                        icon_color = ft.colors.RED,
+                        right = 0,
+                        scale = 0.5
+                    ),
+                ]),
                 col = {'md': 4, 'lg': 3},
+                tooltip = 'Click to copy',
             )
         )
         notes_row.update()
@@ -31,31 +44,42 @@ def main(page: ft.Page) -> None:
         note_text_field.update()
 
     def save_notes(e: ft.ControlEvent) -> None:
-        with open('notes.txt', 'w') as out_file:
+        with open(variables.FILENAME, 'w') as out_file:
             first = True
             for note in notes_row.controls:
                 if not first:
-                    out_file.writelines('\n----------\n')
+                    out_file.writelines(variables.SEPERATOR)
                 first = False
-                out_file.writelines(note.content.content.value)
+                out_file.writelines(note.content.controls[0].content.value)
     
     def load_notes(e: ft.ControlEvent = None) -> None:
         if len(notes_row.controls) > 0:
             notes_row.controls = []
         try:
-            with open('notes.txt', 'r') as in_file:
-                note_texts = in_file.read().split('\n----------\n')
+            with open(variables.FILENAME, 'r') as in_file:
+                note_texts = in_file.read().split(variables.SEPERATOR)
                 for text in note_texts:
+                    if not text:
+                        continue
                     notes_row.controls.append(
                         ft.Card(
-                            content = ft.Container(
-                                content = ft.Text(text),
-                                padding = 10,
-                                on_click = copy_note,
-                                on_long_press = delete_note,
-                                data = len(notes_row.controls),
-                            ),
+                            content = ft.Stack([
+                                ft.Container(
+                                    content = ft.Text(text),
+                                    padding = 10,
+                                    on_click = copy_note,
+                                    data = len(notes_row.controls),
+                                ),
+                                ft.IconButton(
+                                    icon = ft.icons.CLOSE,
+                                    icon_color = ft.colors.RED,
+                                    right = 0,
+                                    scale = 0.5,
+                                    on_click = delete_note
+                                ),
+                            ]),
                             col = {'md': 4, 'lg': 3},
+                            tooltip = 'Click to copy',
                         )
                     )
                 notes_row.update()
@@ -69,6 +93,13 @@ def main(page: ft.Page) -> None:
             notes_row.controls.pop(id)
             break
         notes_row.update()
+    
+    def delete_all_notes(e: ft.ControlEvent) -> None:
+        notes_row.controls = []
+        notes_row.update()
+
+    def close_app(e: ft.ControlEvent) -> None:
+        page.window_close()
 
             
     note_text_field = ft.TextField(
@@ -106,11 +137,18 @@ def main(page: ft.Page) -> None:
                 tooltip = 'Refresh Notes',
                 on_click = load_notes
             ),
-            ft.VerticalDivider(opacity = 0),
+            ft.IconButton(
+                icon = ft.icons.DELETE_FOREVER,
+                icon_color = ft.colors.RED,
+                tooltip = 'Delete All Notes',
+                on_click = delete_all_notes
+            ),
+            ft.VerticalDivider(),
             ft.IconButton(
                 icon = ft.icons.CLOSE,
                 icon_color = ft.colors.RED,
-                tooltip = 'Close App'
+                tooltip = 'Close App',
+                on_click = close_app
             ),
         ],
     )
