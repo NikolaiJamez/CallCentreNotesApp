@@ -19,7 +19,9 @@ def main(page: ft.Page) -> None:
                 content = ft.Container(
                     content = ft.Text(note_text_field.value),
                     padding = 10,
-                    on_click = copy_note
+                    on_click = copy_note,
+                    on_long_press = delete_note,
+                    data = len(notes_row.controls),
                 ),
                 col = {'md': 4, 'lg': 3},
             )
@@ -28,7 +30,47 @@ def main(page: ft.Page) -> None:
         note_text_field.value = ''
         note_text_field.update()
 
+    def save_notes(e: ft.ControlEvent) -> None:
+        with open('notes.txt', 'w') as out_file:
+            first = True
+            for note in notes_row.controls:
+                if not first:
+                    out_file.writelines('\n----------\n')
+                first = False
+                out_file.writelines(note.content.content.value)
+    
+    def load_notes(e: ft.ControlEvent = None) -> None:
+        if len(notes_row.controls) > 0:
+            notes_row.controls = []
+        try:
+            with open('notes.txt', 'r') as in_file:
+                note_texts = in_file.read().split('\n----------\n')
+                for text in note_texts:
+                    notes_row.controls.append(
+                        ft.Card(
+                            content = ft.Container(
+                                content = ft.Text(text),
+                                padding = 10,
+                                on_click = copy_note,
+                                on_long_press = delete_note,
+                                data = len(notes_row.controls),
+                            ),
+                            col = {'md': 4, 'lg': 3},
+                        )
+                    )
+                notes_row.update()
+        except FileNotFoundError:
+            return
 
+    def delete_note(e: ft.ControlEvent) -> None:
+        for id, control in enumerate(notes_row.controls):
+            if control.content.data != e.control.data:
+                continue
+            notes_row.controls.pop(id)
+            break
+        notes_row.update()
+
+            
     note_text_field = ft.TextField(
         label = 'Enter a new note here...',
         max_length = 255,
@@ -37,12 +79,11 @@ def main(page: ft.Page) -> None:
         suffix = ft.IconButton(icon = ft.icons.ARROW_DOWNWARD, on_click = add_note)
     )
 
-    notes_row = ft.ResponsiveRow(
-        
-    )
+    notes_row = ft.ResponsiveRow()
 
     page.on_keyboard_event = on_keyboard
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.scroll = ft.ScrollMode.HIDDEN
     page.snack_bar = ft.SnackBar(
         content = ft.Text('Note copied to clipboard'),
         duration = 1000,
@@ -57,11 +98,13 @@ def main(page: ft.Page) -> None:
             ft.IconButton(
                 icon = ft.icons.SAVE,
                 icon_color = ft.colors.GREEN,
-                tooltip = 'Save Notes'
+                tooltip = 'Save Notes',
+                on_click = save_notes
             ),
             ft.IconButton(
                 icon = ft.icons.REFRESH,
-                tooltip = 'Refresh Notes'
+                tooltip = 'Refresh Notes',
+                on_click = load_notes
             ),
             ft.VerticalDivider(opacity = 0),
             ft.IconButton(
@@ -82,6 +125,8 @@ def main(page: ft.Page) -> None:
         ft.Divider(opacity = 0),
         notes_row
     )
+
+    load_notes()
     page.update()
 
 
